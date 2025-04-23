@@ -2,8 +2,7 @@
 #!/bin/bash
 
 # Setup log file
-exec 1> >(tee "installation.log")
-exec 2>&1
+# BL updated!
 
 echo "Starting installation at $(date)"
 
