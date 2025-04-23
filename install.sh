@@ -1,63 +1,119 @@
-
 #!/bin/bash
 
-# Hiển thị trạng thái cài đặt
+# Kiểm tra hệ điều hành
+if [[ ! -f /etc/lsb-release ]] || ! grep -q "Ubuntu" /etc/lsb-release; then
+    echo "❌ Hệ thống yêu cầu Ubuntu. Vui lòng cài đặt trên Ubuntu 22.04 hoặc cao hơn."
+    exit 1
+fi
+
+# Kiểm tra quyền sudo
+if ! sudo -v; then
+    echo "❌ Yêu cầu quyền sudo để cài đặt."
+    exit 1
+fi
+
+# Khởi tạo log file
+LOG_FILE="installation.log"
+exec 1> >(tee -a "$LOG_FILE") 2>&1
+
 echo "=== Bắt đầu cài đặt Vinatex Report Portal ==="
-echo "Thời gian bắt đầu: $(date)"
+echo "Thời gian: $(date)"
+echo "Hệ điều hành: $(lsb_release -ds)"
 
-# Cập nhật package list
-echo "Cập nhật danh sách gói phần mềm..."
-sudo apt-get update -y || { echo "Không thể cập nhật apt. Có thể cần quyền sudo."; exit 1; }
+# Kiểm tra và cài đặt các gói cần thiết
+echo "Kiểm tra và cài đặt dependencies..."
+DEPS=(curl build-essential python3 python3-pip postgresql postgresql-contrib)
 
-# Cài đặt các dependencies cần thiết
-echo "Cài đặt các dependencies..."
-sudo apt-get install -y curl build-essential python3 python3-pip || { echo "Không thể cài đặt dependencies cơ bản"; exit 1; }
+for dep in "${DEPS[@]}"; do
+    if ! dpkg -l | grep -q "^ii.*$dep"; then
+        echo "Cài đặt $dep..."
+        sudo apt-get install -y "$dep" || {
+            echo "❌ Không thể cài đặt $dep"
+            exit 1
+        }
+    else
+        echo "✓ $dep đã được cài đặt"
+    fi
+done
 
 # Cài đặt Node.js 20.x
 echo "Cài đặt Node.js 20.x..."
-if ! command -v node &> /dev/null || [[ $(node -v | cut -d'v' -f2 | cut -d'.' -f1) -lt 18 ]]; then
+if ! command -v node &> /dev/null || [[ $(node -v | cut -d'v' -f2 | cut -d'.' -f1) -lt 20 ]]; then
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
-    echo "Node.js đã được cài đặt. Phiên bản hiện tại:"
-    node -v
-else
-    echo "Node.js đã được cài đặt. Phiên bản hiện tại:"
-    node -v
+    sudo apt-get install -y nodejs || {
+        echo "❌ Không thể cài đặt Node.js"
+        exit 1
+    }
 fi
+echo "✓ Node.js version: $(node -v)"
+echo "✓ NPM version: $(npm -v)"
 
-# Cài đặt PostgreSQL
-echo "Cài đặt PostgreSQL..."
-if ! command -v psql &> /dev/null; then
-    sudo apt-get install -y postgresql postgresql-contrib
+# Cấu hình PostgreSQL
+echo "Cấu hình PostgreSQL..."
+if ! systemctl is-active --quiet postgresql; then
     sudo systemctl start postgresql
     sudo systemctl enable postgresql
-    echo "PostgreSQL đã được cài đặt thành công"
-else
-    echo "PostgreSQL đã được cài đặt. Phiên bản hiện tại:"
-    psql --version
 fi
 
-# Tạo người dùng PostgreSQL và cơ sở dữ liệu
+# Thiết lập database
 DB_USER="vinatex_user"
 DB_PASSWORD="vinatex_password"
 DB_NAME="vinatex_reports"
 
 echo "Thiết lập cơ sở dữ liệu PostgreSQL..."
-if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw $DB_NAME; then
-    echo "Cơ sở dữ liệu $DB_NAME đã tồn tại"
-else
-    echo "Tạo cơ sở dữ liệu và người dùng $DB_NAME..."
-    # Tạo user nếu chưa tồn tại
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
-        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
-    else
-        sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
-    fi
-    
-    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
-    echo "Cơ sở dữ liệu được tạo thành công"
-fi
+sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;"
+sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;"
+sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+
+# Cấu hình PostgreSQL cho remote access
+sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /etc/postgresql/*/main/postgresql.conf
+echo "host    all             all             0.0.0.0/0               scram-sha-256" | sudo tee -a /etc/postgresql/*/main/pg_hba.conf
+sudo systemctl restart postgresql
+
+# Thiết lập biến môi trường
+echo "Thiết lập biến môi trường..."
+cat > .env << EOF
+DATABASE_URL=postgres://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME
+NODE_ENV=production
+PORT=5000
+SESSION_SECRET=$(openssl rand -hex 32)
+EOF
+chmod 600 .env
+
+# Cài đặt dependencies và khởi động ứng dụng
+echo "Cài đặt dependencies..."
+npm ci
+
+# Cài đặt PM2 globally
+echo "Cài đặt PM2..."
+sudo npm install -g pm2
+
+# Build ứng dụng
+echo "Build ứng dụng..."
+npm run build
+
+# Khởi tạo database schema
+echo "Khởi tạo database schema..."
+npm run db:push
+
+# Khởi động với PM2
+echo "Khởi động ứng dụng..."
+pm2 delete vinatex-reports &>/dev/null || true
+pm2 start npm --name vinatex-reports -- start
+pm2 save
+
+# Thiết lập PM2 startup
+echo "Thiết lập PM2 startup..."
+pm2 startup | tail -n1 | sudo bash
+
+# Kiểm tra cài đặt
+echo -e "\nKiểm tra cài đặt..."
+./check_service.sh
+
+echo -e "\n=== Cài đặt hoàn tất ==="
+echo "Chi tiết cài đặt được lưu trong $LOG_FILE"
 
 # Chuyển đến thư mục dự án
 PROJECT_DIR="$PWD"
@@ -73,46 +129,6 @@ if ! grep -q '"start":' package.json; then
     echo "Đã thêm script start vào package.json"
 fi
 
-# Tạo file .env với thông tin kết nối PostgreSQL
-echo "Thiết lập biến môi trường..."
-cat << EOF > .env
-DATABASE_URL=postgres://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME
-NODE_ENV=production
-PORT=5000
-SESSION_SECRET=vinatex-reports-portal-secret-key
-EOF
-
-chmod 600 .env
-
-# Cài đặt dependencies
-echo "Cài đặt các gói phụ thuộc..."
-npm install
-npm install pm2 -g
-
-# Tạo bảng trong database
-echo "Tạo schema cơ sở dữ liệu..."
-npm run db:push
-
-# Stop existing PM2 processes if any
-pm2 delete vinatex-reports &>/dev/null || true
-
-# Start with PM2
-echo "Khởi động ứng dụng với PM2..."
-pm2 start --name vinatex-reports npm -- start
-pm2 save
-
-# Thiết lập PM2 để tự khởi động khi reboot
-echo "Thiết lập PM2 khởi động khi reboot..."
-pm2 startup | tail -n 1 | bash || echo "Không thể thiết lập PM2 khởi động tự động"
-
-# Kiểm tra xem ứng dụng đã chạy chưa
-echo "Kiểm tra trạng thái ứng dụng..."
-sleep 5
-if pm2 status | grep -q "vinatex-reports.*online"; then
-    echo "Ứng dụng đã chạy thành công!"
-else
-    echo "Ứng dụng chưa chạy. Kiểm tra logs với lệnh: pm2 logs vinatex-reports"
-fi
 
 # Hiển thị thông tin về cách truy cập
 IP_ADDRESS=$(hostname -I | awk '{print $1}')
