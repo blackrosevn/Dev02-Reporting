@@ -326,4 +326,198 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+import { db } from "./db";
+import { eq, and, desc } from "drizzle-orm";
+
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values(user).returning();
+    return newUser;
+  }
+
+  async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(userData)
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  async getUsers(): Promise<User[]> {
+    return db.select().from(users);
+  }
+
+  async getUsersByRole(role: string): Promise<User[]> {
+    return db.select().from(users).where(eq(users.role, role));
+  }
+
+  async getCompany(id: number): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.id, id));
+    return company;
+  }
+
+  async getCompanyByCode(code: string): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.code, code));
+    return company;
+  }
+
+  async createCompany(company: InsertCompany): Promise<Company> {
+    const [newCompany] = await db.insert(companies).values(company).returning();
+    return newCompany;
+  }
+
+  async getCompanies(active?: boolean): Promise<Company[]> {
+    if (typeof active !== 'undefined') {
+      return db.select().from(companies).where(eq(companies.isActive, active));
+    }
+    return db.select().from(companies);
+  }
+
+  async getReportTemplate(id: number): Promise<ReportTemplate | undefined> {
+    const [template] = await db.select().from(reportTemplates).where(eq(reportTemplates.id, id));
+    return template;
+  }
+
+  async createReportTemplate(template: InsertReportTemplate): Promise<ReportTemplate> {
+    const [newTemplate] = await db.insert(reportTemplates).values(template).returning();
+    return newTemplate;
+  }
+
+  async getReportTemplates(active?: boolean): Promise<ReportTemplate[]> {
+    if (typeof active !== 'undefined') {
+      return db.select().from(reportTemplates).where(eq(reportTemplates.isActive, active));
+    }
+    return db.select().from(reportTemplates);
+  }
+
+  async createReportPeriod(periodData: InsertReportPeriod): Promise<ReportPeriod> {
+    const [newPeriod] = await db.insert(reportPeriods).values(periodData).returning();
+    return newPeriod;
+  }
+
+  async getReportPeriods(templateId?: number, active?: boolean): Promise<ReportPeriod[]> {
+    let query = db.select().from(reportPeriods);
+    
+    if (templateId !== undefined && active !== undefined) {
+      query = query.where(
+        and(
+          eq(reportPeriods.templateId, templateId),
+          eq(reportPeriods.isActive, active)
+        )
+      );
+    } else if (templateId !== undefined) {
+      query = query.where(eq(reportPeriods.templateId, templateId));
+    } else if (active !== undefined) {
+      query = query.where(eq(reportPeriods.isActive, active));
+    }
+    
+    return query;
+  }
+
+  async getReportPeriod(id: number): Promise<ReportPeriod | undefined> {
+    const [period] = await db.select().from(reportPeriods).where(eq(reportPeriods.id, id));
+    return period;
+  }
+
+  async createReport(report: InsertReport): Promise<Report> {
+    const [newReport] = await db.insert(reports).values(report).returning();
+    return newReport;
+  }
+
+  async getReport(id: number): Promise<Report | undefined> {
+    const [report] = await db.select().from(reports).where(eq(reports.id, id));
+    return report;
+  }
+
+  async getReportsByCompany(companyId: number): Promise<Report[]> {
+    return db.select().from(reports).where(eq(reports.companyId, companyId));
+  }
+
+  async getReportsByTemplate(templateId: number): Promise<Report[]> {
+    return db.select().from(reports).where(eq(reports.templateId, templateId));
+  }
+
+  async getReportsByPeriod(period: string): Promise<Report[]> {
+    return db.select().from(reports).where(eq(reports.period, period));
+  }
+
+  async getReportsByStatus(status: ReportStatus): Promise<Report[]> {
+    return db.select().from(reports).where(eq(reports.status, status));
+  }
+
+  async submitReport(id: number, userId: number, data: any, fileUrl?: string): Promise<Report | undefined> {
+    const now = new Date();
+    const [report] = await db.select().from(reports).where(eq(reports.id, id));
+    
+    if (!report) return undefined;
+    
+    // Determine status based on due date
+    const status = now > report.dueDate ? ReportStatus.LATE : ReportStatus.SUBMITTED;
+    
+    const [updatedReport] = await db
+      .update(reports)
+      .set({
+        submittedAt: now,
+        submittedBy: userId,
+        status,
+        data,
+        fileUrl,
+        updatedAt: now
+      })
+      .where(eq(reports.id, id))
+      .returning();
+      
+    return updatedReport;
+  }
+
+  async updateReportStatus(id: number, status: ReportStatus): Promise<Report | undefined> {
+    const [updatedReport] = await db
+      .update(reports)
+      .set({
+        status,
+        updatedAt: new Date()
+      })
+      .where(eq(reports.id, id))
+      .returning();
+      
+    return updatedReport;
+  }
+
+  async getAllReports(): Promise<Report[]> {
+    return db.select().from(reports).orderBy(desc(reports.createdAt));
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db.insert(notifications).values(notification).returning();
+    return newNotification;
+  }
+
+  async getNotifications(userId: number): Promise<Notification[]> {
+    return db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async markNotificationAsRead(id: number): Promise<void> {
+    await db
+      .update(notifications)
+      .set({ read: true })
+      .where(eq(notifications.id, id));
+  }
+}
+
+// Use the DatabaseStorage implementation instead of MemStorage
+export const storage = new DatabaseStorage();
