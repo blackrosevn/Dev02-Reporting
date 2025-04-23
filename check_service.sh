@@ -1,6 +1,11 @@
 
 #!/bin/bash
 
+# Ensure database exists
+if ! psql "postgresql://gsm:gsm@0.0.0.0:5432/vinatex" -c '\q' 2>/dev/null; then
+    createdb -h 0.0.0.0 -U gsm vinatex
+fi
+
 # Check if PM2 process is running
 echo "Checking Vinatex Report Portal status..."
 if pm2 list | grep -q "vinatex-backend"; then
