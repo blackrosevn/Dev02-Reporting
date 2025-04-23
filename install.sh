@@ -1,14 +1,11 @@
-
 #!/bin/bash
 
 # Setup log file
-# BL updated!
-
 echo "Starting installation at $(date)"
 
-# Update system
-sudo apt update
-sudo apt upgrade -y
+# Create logs directory with proper permissions 
+mkdir -p logs
+chmod 755 logs
 
 # Install Node.js and npm
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -34,11 +31,15 @@ DATABASE_URL=postgresql://gsm:gsm@0.0.0.0:5432/vinatex
 NODE_ENV=production
 EOL
 
-# Install PM2 globally
-npm install -g pm2
+chmod 600 .env # Secure environment file
 
 # Build the project
 npm run build
+
+# Install PM2 globally if not installed
+if ! command -v pm2 &> /dev/null; then
+    npm install -g pm2
+fi
 
 # Stop any existing PM2 processes
 pm2 delete all || true
@@ -70,10 +71,12 @@ Process Management:
 
 EOL
 
+chmod 644 info.txt
+
 # Save PM2 process list
 pm2 save
 
-# Setup PM2 to start on system boot
+# Setup PM2 startup
 pm2 startup || true
 
 echo "Installation completed! Check info.txt for credentials and details."

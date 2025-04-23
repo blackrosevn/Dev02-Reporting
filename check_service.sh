@@ -1,61 +1,51 @@
+
 #!/bin/bash
 
-# Kiểm tra trạng thái dịch vụ
-echo "Kiểm tra trạng thái Vinatex Report Portal..."
-SERVICE_STATUS=$(sudo systemctl is-active vinatex-reports.service)
-
-if [ "$SERVICE_STATUS" = "active" ]; then
-    echo "✅ Dịch vụ đang hoạt động bình thường."
-    echo "URL truy cập: http://$(hostname -I | awk '{print $1}'):5000"
+# Check if application is running
+echo "Checking Vinatex Report Portal status..."
+if pm2 list | grep -q "vinatex-backend"; then
+    echo "✅ Service is running"
     
-    # Kiểm tra xem có thể truy cập API
-    echo "Kiểm tra kết nối API..."
-    API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/me || echo "failed")
+    # Check API accessibility
+    echo "Checking API connection..."
+    API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://0.0.0.0:5000/api/me || echo "failed")
     
     if [ "$API_STATUS" = "401" ]; then
-        echo "✅ API hoạt động bình thường (trả về 401 Unauthorized là đúng vì chưa đăng nhập)."
+        echo "✅ API is responding (401 Unauthorized expected)"
     else
-        echo "⚠️ API trả về mã lỗi: $API_STATUS"
-        echo "Thử khởi động lại dịch vụ..."
-        sudo systemctl restart vinatex-reports.service
-        sleep 5
-        echo "Trạng thái sau khi khởi động lại: $(sudo systemctl is-active vinatex-reports.service)"
+        echo "⚠️ API returned status: $API_STATUS"
+        echo "Attempting service restart..."
+        pm2 restart vinatex-backend
+        sleep 2
+        echo "Service restarted. New status: $(pm2 status vinatex-backend --no-color | grep status)"
     fi
 else
-    echo "❌ Dịch vụ không hoạt động (trạng thái: $SERVICE_STATUS)"
-    echo "Đang khởi động lại dịch vụ..."
-    sudo systemctl restart vinatex-reports.service
-    sleep 5
-    NEW_STATUS=$(sudo systemctl is-active vinatex-reports.service)
+    echo "❌ Service is not running"
+    echo "Starting service..."
+    pm2 start dist/index.js --name vinatex-backend
+    sleep 2
     
-    if [ "$NEW_STATUS" = "active" ]; then
-        echo "✅ Dịch vụ đã được khởi động lại thành công."
+    if pm2 list | grep -q "vinatex-backend"; then
+        echo "✅ Service started successfully"
     else
-        echo "❌ Không thể khởi động lại dịch vụ. Trạng thái hiện tại: $NEW_STATUS"
-        echo "Kiểm tra logs để biết chi tiết lỗi: sudo journalctl -u vinatex-reports.service -n 50"
+        echo "❌ Failed to start service"
+        echo "Check logs: pm2 logs vinatex-backend"
     fi
 fi
 
-# Kiểm tra kết nối đến cơ sở dữ liệu
+# Check database connection
 echo ""
-echo "Kiểm tra kết nối PostgreSQL..."
-if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw vinatex_reports; then
-    echo "✅ Cơ sở dữ liệu vinatex_reports tồn tại."
-    
-    # Kiểm tra người dùng
-    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='vinatex_user'" | grep -q 1; then
-        echo "✅ Người dùng vinatex_user tồn tại."
-    else
-        echo "❌ Người dùng vinatex_user không tồn tại!"
-    fi
+echo "Checking database connection..."
+if psql "postgresql://gsm:gsm@0.0.0.0:5432/vinatex" -c '\q' 2>/dev/null; then
+    echo "✅ Database connection successful"
 else
-    echo "❌ Cơ sở dữ liệu vinatex_reports không tồn tại!"
+    echo "❌ Database connection failed"
 fi
 
-# Hiển thị các lệnh hữu ích
+# Display helpful commands
 echo ""
-echo "=== Các lệnh hữu ích ==="
-echo "Xem logs chi tiết:        sudo journalctl -u vinatex-reports.service -f"
-echo "Khởi động lại dịch vụ:    sudo systemctl restart vinatex-reports.service"
-echo "Dừng dịch vụ:             sudo systemctl stop vinatex-reports.service"
-echo "Cài đặt lại hoàn toàn:    ./install.sh"
+echo "=== Helpful Commands ==="
+echo "View detailed logs:        pm2 logs vinatex-backend"
+echo "Restart service:           pm2 restart vinatex-backend"
+echo "Stop service:              pm2 stop vinatex-backend"
+echo "Full reinstallation:       ./install.sh"
