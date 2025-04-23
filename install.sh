@@ -22,20 +22,26 @@ sudo apt install -y postgresql postgresql-contrib
 sudo -u postgres psql -c "CREATE USER gsm WITH PASSWORD 'gsm';"
 sudo -u postgres psql -c "CREATE DATABASE vinatex WITH OWNER gsm;"
 
-# Create project directory
+# Create and set permissions for project directory
 PROJECT_DIR="/home/gsm/vinatex"
-mkdir -p $PROJECT_DIR
+sudo mkdir -p $PROJECT_DIR
+sudo chown gsm:gsm $PROJECT_DIR
 cd $PROJECT_DIR
 
-# Clone/copy project files (assuming files are in current directory)
-cp -r * $PROJECT_DIR/
+# Copy current directory contents to project directory
+sudo cp -r . $PROJECT_DIR/
 
-# Install npm dependencies
+# Set permissions
+sudo chown -R gsm:gsm $PROJECT_DIR
+sudo chmod -R 755 $PROJECT_DIR
+
+# Install dependencies
+cd $PROJECT_DIR
 npm install
 
 # Set environment variables
 cat > .env << EOL
-DATABASE_URL=postgresql://gsm:gsm@localhost:5432/vinatex
+DATABASE_URL=postgresql://gsm:gsm@0.0.0.0:5432/vinatex
 NODE_ENV=production
 EOL
 
@@ -46,7 +52,8 @@ sudo npm install -g pm2
 npm run build
 
 # Setup PM2 startup script
-sudo pm2 startup ubuntu
+pm2 startup ubuntu
+sudo env PATH=$PATH:/usr/bin pm2 startup ubuntu -u gsm --hp /home/gsm
 pm2 start dist/index.js --name vinatex
 pm2 save
 
@@ -55,14 +62,14 @@ cat > info.txt << EOL
 Installation completed at $(date)
 
 Database Information:
-- Host: localhost
+- Host: 0.0.0.0
 - Port: 5432
 - Database: vinatex
 - Username: gsm
 - Password: gsm
 
 Application Access:
-- URL: http://localhost:5000
+- URL: http://0.0.0.0:5000
 - Admin username: admin
 - Admin password: admin123
 
@@ -72,9 +79,5 @@ Process Management:
 - View logs: pm2 logs vinatex
 - Restart app: pm2 restart vinatex
 EOL
-
-# Set proper permissions
-sudo chown -R gsm:gsm $PROJECT_DIR
-sudo chmod -R 755 $PROJECT_DIR
 
 echo "Installation completed! Check info.txt for credentials and details."
