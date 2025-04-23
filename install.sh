@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Setup log file
@@ -25,24 +26,26 @@ sudo -u postgres psql -c "DROP USER IF EXISTS gsm;"
 sudo -u postgres psql -c "CREATE USER gsm WITH PASSWORD 'gsm';"
 sudo -u postgres psql -c "CREATE DATABASE vinatex WITH OWNER gsm;"
 
-
 # Install dependencies
 npm install
 
 # Set environment variables
 cat > .env << EOL
 DATABASE_URL=postgresql://gsm:gsm@0.0.0.0:5432/vinatex
-NODE_ENV=development
+NODE_ENV=production
 EOL
 
-# Setup PM2 for process management 
+# Install PM2 globally
 npm install -g pm2
 
 # Build the project
 npm run build
 
-# Start the application with PM2
-pm2 start dist/index.js --name vinatex
+# Stop any existing PM2 processes
+pm2 delete all || true
+
+# Start the server with PM2
+pm2 start dist/index.js --name vinatex-backend
 
 # Create info.txt with credentials
 cat > info.txt << EOL
@@ -63,8 +66,15 @@ Application Access:
 Process Management:
 - PM2 is used to manage the application
 - View status: pm2 status
-- View logs: pm2 logs vinatex
-- Restart app: pm2 restart vinatex
+- View logs: pm2 logs vinatex-backend
+- Restart app: pm2 restart vinatex-backend
+
 EOL
+
+# Save PM2 process list
+pm2 save
+
+# Setup PM2 to start on system boot
+pm2 startup || true
 
 echo "Installation completed! Check info.txt for credentials and details."
