@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Setup log file
@@ -15,47 +14,35 @@ sudo apt upgrade -y
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 
-# Install PostgreSQL
-sudo apt install -y postgresql postgresql-contrib
+# Install PostgreSQL if not already installed
+if ! command -v psql &> /dev/null; then
+    sudo apt install -y postgresql postgresql-contrib
+fi
 
-# Setup PostgreSQL
+# Setup PostgreSQL - drop existing database and user if they exist
+sudo -u postgres psql -c "DROP DATABASE IF EXISTS vinatex;"
+sudo -u postgres psql -c "DROP USER IF EXISTS gsm;"
 sudo -u postgres psql -c "CREATE USER gsm WITH PASSWORD 'gsm';"
 sudo -u postgres psql -c "CREATE DATABASE vinatex WITH OWNER gsm;"
 
-# Create and set permissions for project directory
-PROJECT_DIR="/home/gsm/vinatex"
-sudo mkdir -p $PROJECT_DIR
-sudo chown gsm:gsm $PROJECT_DIR
-cd $PROJECT_DIR
-
-# Copy current directory contents to project directory
-sudo cp -r . $PROJECT_DIR/
-
-# Set permissions
-sudo chown -R gsm:gsm $PROJECT_DIR
-sudo chmod -R 755 $PROJECT_DIR
 
 # Install dependencies
-cd $PROJECT_DIR
 npm install
 
 # Set environment variables
 cat > .env << EOL
 DATABASE_URL=postgresql://gsm:gsm@0.0.0.0:5432/vinatex
-NODE_ENV=production
+NODE_ENV=development
 EOL
 
-# Setup PM2 for process management
-sudo npm install -g pm2
+# Setup PM2 for process management 
+npm install -g pm2
 
 # Build the project
 npm run build
 
-# Setup PM2 startup script
-pm2 startup ubuntu
-sudo env PATH=$PATH:/usr/bin pm2 startup ubuntu -u gsm --hp /home/gsm
+# Start the application with PM2
 pm2 start dist/index.js --name vinatex
-pm2 save
 
 # Create info.txt with credentials
 cat > info.txt << EOL
