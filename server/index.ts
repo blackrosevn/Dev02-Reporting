@@ -44,6 +44,7 @@ app.use((req, res, next) => {
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
+    log(`Error: ${err.message}`); //Added logging for errors
     throw err;
   });
 
@@ -73,5 +74,13 @@ app.use((req, res, next) => {
     }
     log(`Failed to start server: ${e.message}`);
     process.exit(1);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    log('Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+
+  process.on('uncaughtException', (error) => {
+    log('Uncaught Exception:', error);
   });
 })();
