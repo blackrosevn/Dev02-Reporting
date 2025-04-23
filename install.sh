@@ -1,9 +1,16 @@
+
 #!/bin/bash
 
 echo "Starting installation at $(date)"
 
 # Install dependencies
 npm install
+
+# Ensure database exists
+echo "Setting up database..."
+if ! psql "postgresql://gsm:gsm@0.0.0.0:5432/vinatex" -c '\q' 2>/dev/null; then
+    createdb -h 0.0.0.0 -U gsm vinatex
+fi
 
 # Set environment variables
 cat > .env << EOL
@@ -25,7 +32,8 @@ fi
 pm2 delete vinatex-backend || true
 
 # Start the server with PM2
-pm2 start dist/index.js --name vinatex-backend
+cd dist && pm2 start index.js --name vinatex-backend
+cd ..
 
 # Create info.txt with credentials
 cat > info.txt << EOL

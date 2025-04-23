@@ -1,7 +1,7 @@
 
 #!/bin/bash
 
-# Check if application is running
+# Check if PM2 process is running
 echo "Checking Vinatex Report Portal status..."
 if pm2 list | grep -q "vinatex-backend"; then
     echo "✅ Service is running"
@@ -22,7 +22,7 @@ if pm2 list | grep -q "vinatex-backend"; then
 else
     echo "❌ Service is not running"
     echo "Starting service..."
-    pm2 start dist/index.js --name vinatex-backend
+    cd dist && pm2 start index.js --name vinatex-backend
     sleep 2
     
     if pm2 list | grep -q "vinatex-backend"; then
@@ -36,10 +36,18 @@ fi
 # Check database connection
 echo ""
 echo "Checking database connection..."
-if psql "postgresql://gsm:gsm@0.0.0.0:5432/vinatex" -c '\q' 2>/dev/null; then
-    echo "✅ Database connection successful"
+psql "postgresql://gsm:gsm@0.0.0.0:5432/vinatex" -c '\q' 2>/dev/null
+if [ $? -eq 0 ]; then
+    echo "✅ Database connection successful" 
 else
     echo "❌ Database connection failed"
+    echo "Creating database..."
+    createdb -h 0.0.0.0 -U gsm vinatex
+    if [ $? -eq 0 ]; then
+        echo "✅ Database created successfully"
+    else
+        echo "❌ Failed to create database"
+    fi
 fi
 
 # Display helpful commands
