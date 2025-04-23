@@ -73,56 +73,62 @@ export default function Reports() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Báo cáo tài chính Q2</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <FileText className="h-5 w-5 text-neutral-500 mr-2" />
-                <span className="text-sm text-neutral-600">Đã nộp: 15/07/2023</span>
+        <Link href="/reports/financial">
+          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-medium">Báo cáo tài chính</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 text-neutral-500 mr-2" />
+                  <span className="text-sm text-neutral-600">Các báo cáo tài chính</span>
+                </div>
+                <Button variant="link" size="sm" className="text-secondary">
+                  Xem chi tiết
+                </Button>
               </div>
-              <Button variant="link" size="sm" className="text-secondary">
-                Xem chi tiết
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Báo cáo nhân sự Q2</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <FileText className="h-5 w-5 text-neutral-500 mr-2" />
-                <span className="text-sm text-neutral-600">Đã nộp: 10/07/2023</span>
+        <Link href="/reports/create">
+          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-medium">Tạo báo cáo mới</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 text-neutral-500 mr-2" />
+                  <span className="text-sm text-neutral-600">Tạo báo cáo kỳ mới</span>
+                </div>
+                <Button variant="link" size="sm" className="text-secondary">
+                  Tạo báo cáo
+                </Button>
               </div>
-              <Button variant="link" size="sm" className="text-secondary">
-                Xem chi tiết
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Báo cáo sản xuất Q2</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <FileText className="h-5 w-5 text-neutral-500 mr-2" />
-                <span className="text-sm text-neutral-600">Đã nộp: 12/07/2023</span>
+        <Link href="/reports/export">
+          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-medium">Xuất báo cáo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 text-neutral-500 mr-2" />
+                  <span className="text-sm text-neutral-600">Xuất báo cáo thành Excel/PDF</span>
+                </div>
+                <Button variant="link" size="sm" className="text-secondary">
+                  Xuất báo cáo
+                </Button>
               </div>
-              <Button variant="link" size="sm" className="text-secondary">
-                Xem chi tiết
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </MainLayout>
   );

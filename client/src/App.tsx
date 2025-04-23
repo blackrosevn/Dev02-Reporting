@@ -11,6 +11,8 @@ import Dashboard from "@/pages/dashboard";
 import Reports from "@/pages/reports";
 import CreateReport from "@/pages/reports/create";
 import ReportTemplates from "@/pages/reports/templates";
+import FinancialReports from "@/pages/reports/financial";
+import ExportReports from "@/pages/reports/export";
 import AdminUsers from "@/pages/admin/users";
 import AdminSettings from "@/pages/admin/settings";
 import ProtectedRoute from "@/components/auth/protected-route";
@@ -39,6 +41,16 @@ function Router() {
       <Route path="/reports/templates">
         <ProtectedRoute roles={[UserRole.ADMIN, UserRole.DEPARTMENT]}>
           <ReportTemplates />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/reports/financial">
+        <ProtectedRoute>
+          <FinancialReports />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/reports/export">
+        <ProtectedRoute roles={[UserRole.ADMIN, UserRole.DEPARTMENT]}>
+          <ExportReports />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/users">
