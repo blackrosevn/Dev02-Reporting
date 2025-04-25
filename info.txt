@@ -1,0 +1,20 @@
+Installation completed at Wed 23 Apr 2025 08:46:41 AM UTC
+
+Database Information:
+- Host: 0.0.0.0
+- Port: 5432
+- Database: vinatex
+- Username: gsm
+- Password: gsm
+
+Application Access:
+- URL: http://0.0.0.0:5000
+- Admin username: admin
+- Admin password: admin123
+
+Process Management:
+- PM2 is used to manage the application
+- View status: pm2 status
+- View logs: pm2 logs vinatex-backend
+- Restart app: pm2 restart vinatex-backend
+
