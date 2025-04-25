@@ -80,9 +80,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Tên đăng nhập hoặc mật khẩu không hợp lệ" });
       }
 
-      // Simple password check (in production would use bcrypt)
-      // Replace with bcrypt.compare in production
-      const isPasswordValid = password === user.password;
+      // Password validation using bcrypt
+      const isPasswordValid = await bcrypt.compare(password, user.password);
       
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Tên đăng nhập hoặc mật khẩu không hợp lệ" });

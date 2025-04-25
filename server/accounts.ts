@@ -1,6 +1,7 @@
 import { storage } from "./storage";
 import { UserRole } from "@shared/schema";
 import { COMPANY_LIST } from "../client/src/lib/constants";
+import bcrypt from "bcryptjs";
 
 /**
  * Initialize seed data for development
@@ -15,10 +16,12 @@ export async function initSeedData(storage: any) {
 
   console.log("Initializing seed data...");
 
-  // Create admin user
+  // Create admin user with hashed password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash("admin123", salt);
   await storage.createUser({
     username: "admin",
-    password: "admin123",
+    password: hashedPassword,
     name: "Admin Vinatex",
     email: "admin@vinatex.com.vn",
     role: UserRole.ADMIN,
@@ -37,10 +40,13 @@ export async function initSeedData(storage: any) {
     { name: "Ban Đầu tư", code: "DT" }
   ];
 
+  // Hash password for all users
+  const defaultPassword = await bcrypt.hash("vinatex123", salt);
+  
   for (const dept of departments) {
     await storage.createUser({
       username: dept.code.toLowerCase(),
-      password: "vinatex123",
+      password: defaultPassword,
       name: `Quản lý ${dept.name}`,
       email: `${dept.code.toLowerCase()}@vinatex.com.vn`,
       role: UserRole.DEPARTMENT,
@@ -54,7 +60,7 @@ export async function initSeedData(storage: any) {
   // Create leader user
   await storage.createUser({
     username: "lanhdao",
-    password: "vinatex123",
+    password: defaultPassword,
     name: "Lãnh đạo Tập đoàn",
     email: "lanhdao@vinatex.com.vn",
     role: UserRole.ADMIN,
@@ -67,7 +73,7 @@ export async function initSeedData(storage: any) {
   for (const company of COMPANY_LIST) {
     await storage.createUser({
       username: company.code.toLowerCase(),
-      password: "vinatex123",
+      password: defaultPassword,
       name: `Người dùng ${company.name}`,
       email: `${company.code.toLowerCase()}@vinatex.com.vn`,
       role: UserRole.MEMBER_UNIT,
