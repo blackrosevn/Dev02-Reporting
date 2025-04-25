@@ -15,6 +15,7 @@ import FinancialReports from "@/pages/reports/financial";
 import ExportReports from "@/pages/reports/export";
 import AdminUsers from "@/pages/admin/users";
 import AdminSettings from "@/pages/admin/settings";
+import AdminPeriods from "@/pages/admin/periods";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { UserRole } from "@shared/schema";
 
@@ -61,6 +62,11 @@ function Router() {
       <Route path="/admin/settings">
         <ProtectedRoute roles={[UserRole.ADMIN]}>
           <AdminSettings />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/periods">
+        <ProtectedRoute roles={[UserRole.ADMIN]}>
+          <AdminPeriods />
         </ProtectedRoute>
       </Route>
       {/* Fallback to 404 */}
